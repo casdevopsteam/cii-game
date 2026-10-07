@@ -16,7 +16,7 @@ pipeline {
         
         // ── VM Deployment Target ────────────────────────────────────────────
         VM_USER = "deploy"
-        VM_HOST = "192.168.1.34" # Replace with your Proxmox VM IP
+        VM_HOST = "192.168.1.34" // Replace with your Proxmox VM IP
         VM_APP_DIR = "/home/cubeai/cii-inclusive-tycoon"
         
         // ── Git Configuration ───────────────────────────────────────────────
