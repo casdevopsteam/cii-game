@@ -23,40 +23,44 @@ app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 // Initialize Database & Seed
-initDatabase();
-seedData();
+async function startServer() {
+  await initDatabase();
+  await seedData();
 
-// REST Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/sessions', sessionRoutes);
-app.use('/api/cards', cardRoutes);
-app.use('/api/assessments', assessmentRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/ai', aiRoutes);
+  // REST Routes
+  app.use('/api/auth', authRoutes);
+  app.use('/api/sessions', sessionRoutes);
+  app.use('/api/cards', cardRoutes);
+  app.use('/api/assessments', assessmentRoutes);
+  app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/ai', aiRoutes);
 
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'CII CWL Inclusive Tycoon API Server',
-    version: '1.0.0',
-    timestamp: new Date().toISOString()
+  // Health Check
+  app.get('/api/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      service: 'CII CWL Inclusive Tycoon API Server',
+      version: '1.0.0',
+      timestamp: new Date().toISOString()
+    });
   });
-});
 
-// Setup HTTP & Socket.io Server
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
+  // Setup HTTP & Socket.io Server
+  const server = http.createServer(app);
+  const io = new Server(server, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
+  });
 
-setupSocketHandler(io);
+  setupSocketHandler(io);
 
-server.listen(PORT, () => {
-  console.log(`====================================================`);
-  console.log(`🚀 CII Inclusive Tycoon Backend running on port ${PORT}`);
-  console.log(`====================================================`);
-});
+  server.listen(PORT, () => {
+    console.log(`====================================================`);
+    console.log(`🚀 CII Inclusive Tycoon Backend running on port ${PORT}`);
+    console.log(`====================================================`);
+  });
+}
+
+startServer().catch(console.error);
