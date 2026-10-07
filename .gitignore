@@ -1,4 +1,33 @@
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Build Outputs
 dist/
-.env
-data/
+build/
+*.tsbuildinfo
+
+# Environment Variables & Secrets
+*.env
+.env.*
+!.env.example
+.env.production
+.env.local
+
+# Docker & Deployment
+deploy/.env
+postgres-data/
+*.log
+docker-compose.override.yml
+
+# OS & Editor
+.DS_Store
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+
+# Jenkins
+Jenkinsfile.local

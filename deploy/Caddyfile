@@ -1,0 +1,20 @@
+# Global Options
+{
+    admin off
+}
+
+# Internal listener on Port 80
+:80 {
+    # Health check endpoint for Docker Compose
+    respond /caddy-health 200 {
+        body "OK"
+    }
+
+    # Reverse proxy to the heavily secured Nginx instance
+    reverse_proxy nginx:8080 {
+        # Idiomatic Caddy headers mapping (preserving real IP from Cloudflare)
+        header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+        header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+        header_up X-Forwarded-Proto https
+    }
+}
