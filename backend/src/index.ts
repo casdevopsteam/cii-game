@@ -25,7 +25,7 @@ app.use(express.json());
 // Initialize Database & Seed
 async function startServer() {
   await initDatabase();
-  await seedData();
+  await seedData().catch(console.error);
 
   // REST Routes
   app.use('/api/auth', authRoutes);

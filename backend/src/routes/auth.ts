@@ -6,7 +6,7 @@ import { db } from '../db';
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'cii_cwl_inclusive_tycoon_secret_key_2026';
 
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const { name, email, password, age, company, country, role } = req.body;
 
@@ -14,7 +14,7 @@ router.post('/register', (req, res) => {
       return res.status(400).json({ error: 'Name, email, and password are required.' });
     }
 
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existing) {
       return res.status(400).json({ error: 'User with this email already exists.' });
     }
@@ -23,7 +23,7 @@ router.post('/register', (req, res) => {
     const passwordHash = bcrypt.hashSync(password, 10);
     const userRole = role === 'admin' || role === 'superadmin' ? role : 'user';
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO users (id, name, email, password_hash, age, company, country, role)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(userId, name, email, passwordHash, age || null, company || '', country || 'India', userRole);
@@ -40,7 +40,7 @@ router.post('/register', (req, res) => {
   }
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -48,7 +48,7 @@ router.post('/login', (req, res) => {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
-    const user: any = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user: any = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
@@ -82,7 +82,7 @@ router.post('/login', (req, res) => {
   }
 });
 
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
@@ -90,7 +90,7 @@ router.get('/me', (req, res) => {
     const token = authHeader.split(' ')[1];
     const decoded: any = jwt.verify(token, JWT_SECRET);
 
-    const user: any = db.prepare('SELECT id, name, email, role, age, company, country FROM users WHERE id = ?').get(decoded.id);
+    const user: any = await db.prepare('SELECT id, name, email, role, age, company, country FROM users WHERE id = ?').get(decoded.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     res.json({ user });

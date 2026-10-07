@@ -10,18 +10,44 @@ if (!connectionString) {
   process.exit(1);
 }
 
-export const db = new Pool({
+export const pool = new Pool({
   connectionString,
 });
 
 // Test connection
-db.on('error', (err) => {
+pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
   process.exit(-1);
 });
 
+function convertSql(sql: string) {
+  let i = 1;
+  return sql.replace(/\?/g, () => `$${i++}`);
+}
+
+export const db = {
+  prepare: (sql: string) => {
+    const pgSql = convertSql(sql);
+    return {
+      get: async (...params: any[]) => {
+        const res = await pool.query(pgSql, params);
+        return res.rows[0];
+      },
+      all: async (...params: any[]) => {
+        const res = await pool.query(pgSql, params);
+        return res.rows;
+      },
+      run: async (...params: any[]) => {
+        const res = await pool.query(pgSql, params);
+        return { changes: res.rowCount, lastInsertRowid: null };
+      }
+    };
+  },
+  query: pool.query.bind(pool)
+};
+
 export async function initDatabase() {
-  const client = await db.connect();
+  const client = await pool.connect();
   try {
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -29,42 +55,29 @@ export async function initDatabase() {
         name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
         age INTEGER,
         company TEXT,
-        country TEXT,
-        role TEXT NOT NULL DEFAULT 'user', -- 'user' | 'admin' | 'superadmin'
+        country TEXT DEFAULT 'India',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-
+    `);
+    
+    await client.query(`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
-        code TEXT UNIQUE NOT NULL,
-        creator_id TEXT NOT NULL,
-        mode TEXT NOT NULL, -- 'single' | 'multi'
-        status TEXT NOT NULL DEFAULT 'waiting', -- 'waiting' | 'active' | 'completed'
-        current_turn INTEGER DEFAULT 1,
-        max_turns INTEGER DEFAULT 10,
-        turn_timer_sec INTEGER DEFAULT 60,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS session_players (
-        id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        user_id TEXT,
-        is_bot INTEGER DEFAULT 0,
-        bot_archetype TEXT,
         player_name TEXT NOT NULL,
-        points INTEGER DEFAULT 1000,
-        brand_equity INTEGER DEFAULT 50,
-        inclusion_score INTEGER DEFAULT 50,
-        talent_retained INTEGER DEFAULT 70,
-        turn_completed INTEGER DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'active',
+        current_turn INTEGER DEFAULT 1,
+        max_turns INTEGER DEFAULT 12,
+        metrics JSONB NOT NULL,
+        events_history JSONB NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
 
+    await client.query(`
       CREATE TABLE IF NOT EXISTS investment_cards (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -74,11 +87,13 @@ export async function initDatabase() {
         equity_impact INTEGER NOT NULL,
         inclusion_impact INTEGER NOT NULL,
         talent_impact INTEGER NOT NULL,
-        description TEXT NOT NULL,
-        real_world_case TEXT NOT NULL,
-        learning_insight TEXT NOT NULL
+        description TEXT,
+        real_world_case TEXT,
+        learning_insight TEXT
       );
+    `);
 
+    await client.query(`
       CREATE TABLE IF NOT EXISTS event_cards (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -86,60 +101,26 @@ export async function initDatabase() {
         points_effect INTEGER NOT NULL,
         equity_effect INTEGER NOT NULL,
         inclusion_effect INTEGER NOT NULL,
-        narrative TEXT NOT NULL,
-        takeaway TEXT NOT NULL
+        narrative TEXT,
+        takeaway TEXT
       );
+    `);
 
-      CREATE TABLE IF NOT EXISTS player_decisions (
-        id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        player_id TEXT NOT NULL,
-        turn_number INTEGER NOT NULL,
-        card_id TEXT NOT NULL,
-        action TEXT NOT NULL, -- 'invest' | 'pass'
-        points_spent INTEGER NOT NULL,
-        points_earned INTEGER NOT NULL,
-        ai_feedback TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-        FOREIGN KEY (player_id) REFERENCES session_players(id) ON DELETE CASCADE
-      );
-
+    await client.query(`
       CREATE TABLE IF NOT EXISTS assessments (
         id TEXT PRIMARY KEY,
         question TEXT NOT NULL,
-        options TEXT NOT NULL, -- JSON string array
+        options TEXT NOT NULL,
         correct_option INTEGER NOT NULL,
-        explanation TEXT NOT NULL,
-        category TEXT NOT NULL -- 'pre' | 'post' | 'both'
-      );
-
-      CREATE TABLE IF NOT EXISTS user_assessment_responses (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        session_id TEXT,
-        assessment_type TEXT NOT NULL, -- 'pre' | 'post'
-        score INTEGER NOT NULL,
-        total_questions INTEGER NOT NULL,
-        answers_json TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      );
-
-      CREATE TABLE IF NOT EXISTS session_feedback (
-        id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        rating INTEGER NOT NULL,
-        comments TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        explanation TEXT,
+        category TEXT
       );
     `);
-    console.log('Database tables initialized successfully.');
-  } catch (error) {
-    console.error('Error initializing database tables:', error);
+    
+    console.log("Database initialized successfully.");
+  } catch (err) {
+    console.error("Database initialization failed:", err);
+    throw err;
   } finally {
     client.release();
   }

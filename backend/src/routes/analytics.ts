@@ -6,19 +6,19 @@ import { AiOrchestrator } from '../services/aiOrchestrator';
 const router = Router();
 
 // Super Admin Platform Analytics
-router.get('/superadmin', (req, res) => {
+router.get('/superadmin', async (req, res) => {
   try {
-    const totalUsers: any = db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "user"').get();
-    const totalAdmins: any = db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "admin"').get();
-    const totalSessions: any = db.prepare('SELECT COUNT(*) as count FROM sessions').get();
-    const completedSessions: any = db.prepare('SELECT COUNT(*) as count FROM sessions WHERE status = "completed"').get();
-    const totalDecisions: any = db.prepare('SELECT COUNT(*) as count FROM player_decisions').get();
+    const totalUsers: any = await db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "user"').get();
+    const totalAdmins: any = await db.prepare('SELECT COUNT(*) as count FROM users WHERE role = "admin"').get();
+    const totalSessions: any = await db.prepare('SELECT COUNT(*) as count FROM sessions').get();
+    const completedSessions: any = await db.prepare('SELECT COUNT(*) as count FROM sessions WHERE status = "completed"').get();
+    const totalDecisions: any = await db.prepare('SELECT COUNT(*) as count FROM player_decisions').get();
 
-    const preAssessmentAvg: any = db.prepare('SELECT AVG(CAST(score AS FLOAT) / total_questions * 100) as avg FROM user_assessment_responses WHERE assessment_type = "pre"').get();
-    const postAssessmentAvg: any = db.prepare('SELECT AVG(CAST(score AS FLOAT) / total_questions * 100) as avg FROM user_assessment_responses WHERE assessment_type = "post"').get();
+    const preAssessmentAvg: any = await db.prepare('SELECT AVG(CAST(score AS FLOAT) / total_questions * 100) as avg FROM user_assessment_responses WHERE assessment_type = "pre"').get();
+    const postAssessmentAvg: any = await db.prepare('SELECT AVG(CAST(score AS FLOAT) / total_questions * 100) as avg FROM user_assessment_responses WHERE assessment_type = "post"').get();
 
     // Investment card choice breakdown
-    const cardStats = db.prepare(`
+    const cardStats = await db.prepare(`
       SELECT ic.title, ic.category, COUNT(pd.id) as pick_count
       FROM investment_cards ic
       LEFT JOIN player_decisions pd ON ic.id = pd.card_id AND pd.action = 'invest'
@@ -27,7 +27,7 @@ router.get('/superadmin', (req, res) => {
     `).all();
 
     // Recent sessions
-    const recentSessions = db.prepare(`
+    const recentSessions = await db.prepare(`
       SELECT s.*, u.name as creator_name, u.company
       FROM sessions s
       LEFT JOIN users u ON s.creator_id = u.id
@@ -56,16 +56,16 @@ router.get('/superadmin', (req, res) => {
 });
 
 // Institutional Admin Session Analytics
-router.get('/admin/:adminId', (req, res) => {
+router.get('/admin/:adminId', async (req, res) => {
   try {
     const adminId = req.params.adminId;
-    const adminSessions = db.prepare('SELECT * FROM sessions WHERE creator_id = ? ORDER BY created_at DESC').all(adminId);
+    const adminSessions = await db.prepare('SELECT * FROM sessions WHERE creator_id = ? ORDER BY created_at DESC').all(adminId);
 
     const sessionIds = adminSessions.map((s: any) => s.id);
     let totalParticipants = 0;
     if (sessionIds.length > 0) {
       const placeholders = sessionIds.map(() => '?').join(',');
-      const countRes: any = db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM session_players WHERE session_id IN (${placeholders}) AND is_bot = 0`).get(...sessionIds);
+      const countRes: any = await db.prepare(`SELECT COUNT(DISTINCT user_id) as count FROM session_players WHERE session_id IN (${placeholders}) AND is_bot = 0`).get(...sessionIds);
       totalParticipants = countRes.count;
     }
 
@@ -80,13 +80,13 @@ router.get('/admin/:adminId', (req, res) => {
 });
 
 // Download CSV of Session Results
-router.get('/export/csv/:sessionId', (req, res) => {
+router.get('/export/csv/:sessionId', async (req, res) => {
   try {
     const sessionId = req.params.sessionId;
-    const session: any = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+    const session: any = await db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
-    const players = db.prepare('SELECT * FROM session_players WHERE session_id = ? ORDER BY points DESC').all(sessionId);
+    const players = await db.prepare('SELECT * FROM session_players WHERE session_id = ? ORDER BY points DESC').all(sessionId);
 
     let csv = 'Player Name,Is Bot,Archetype,Final Points,Brand Equity,Inclusion Score,Talent Retained\n';
     players.forEach((p: any) => {
@@ -105,12 +105,12 @@ router.get('/export/csv/:sessionId', (req, res) => {
 router.get('/certificate/:sessionId/:userId', async (req, res) => {
   try {
     const { sessionId, userId } = req.params;
-    const player: any = db.prepare('SELECT * FROM session_players WHERE session_id = ? AND (user_id = ? OR id = ?)').get(sessionId, userId, userId);
-    const user: any = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    const player: any = await db.prepare('SELECT * FROM session_players WHERE session_id = ? AND (user_id = ? OR id = ?)').get(sessionId, userId, userId);
+    const user: any = await db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
 
     if (!player) return res.status(404).json({ error: 'Player data not found for this session.' });
 
-    const decisions = db.prepare('SELECT * FROM player_decisions WHERE session_id = ? AND player_id = ?').all(sessionId, player.id);
+    const decisions = await db.prepare('SELECT * FROM player_decisions WHERE session_id = ? AND player_id = ?').all(sessionId, player.id);
     const debrief = AiOrchestrator.generateEndGameDebrief(player, decisions);
 
     const pdfBuffer = await generateCertificatePDF({

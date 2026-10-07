@@ -4,9 +4,9 @@ import { db } from '../db';
 const router = Router();
 
 // Get Investment Cards
-router.get('/investment', (req, res) => {
+router.get('/investment', async (req, res) => {
   try {
-    const cards = db.prepare('SELECT * FROM investment_cards ORDER BY cost ASC').all();
+    const cards = await db.prepare('SELECT * FROM investment_cards ORDER BY cost ASC').all();
     res.json({ cards });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -14,9 +14,9 @@ router.get('/investment', (req, res) => {
 });
 
 // Get Event Cards
-router.get('/event', (req, res) => {
+router.get('/event', async (req, res) => {
   try {
-    const cards = db.prepare('SELECT * FROM event_cards').all();
+    const cards = await db.prepare('SELECT * FROM event_cards').all();
     res.json({ cards });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -24,7 +24,7 @@ router.get('/event', (req, res) => {
 });
 
 // Create Investment Card (Admin / Super Admin)
-router.post('/investment', (req, res) => {
+router.post('/investment', async (req, res) => {
   try {
     const { title, category, cost, yield_points, equity_impact, inclusion_impact, talent_impact, description, real_world_case, learning_insight } = req.body;
 
@@ -33,7 +33,7 @@ router.post('/investment', (req, res) => {
     }
 
     const cardId = 'inv_' + Date.now();
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO investment_cards 
       (id, title, category, cost, yield_points, equity_impact, inclusion_impact, talent_impact, description, real_world_case, learning_insight)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -58,10 +58,10 @@ router.post('/investment', (req, res) => {
 });
 
 // Delete Investment Card (Admin / Super Admin)
-router.delete('/investment/:id', (req, res) => {
+router.delete('/investment/:id', async (req, res) => {
   try {
     const cardId = req.params.id;
-    db.prepare('DELETE FROM investment_cards WHERE id = ?').run(cardId);
+    await db.prepare('DELETE FROM investment_cards WHERE id = ?').run(cardId);
     res.json({ message: 'Card deleted successfully' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

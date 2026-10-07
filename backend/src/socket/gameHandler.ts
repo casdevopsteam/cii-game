@@ -7,36 +7,36 @@ export function setupSocketHandler(io: Server) {
     console.log(`Socket connected: ${socket.id}`);
 
     // Join Game Room
-    socket.on('join_game', ({ sessionId, playerId }) => {
+    socket.on('join_game', async ({ sessionId, playerId }) => {
       socket.join(sessionId);
       console.log(`Player ${playerId} joined session ${sessionId}`);
 
-      const players = db.prepare('SELECT * FROM session_players WHERE session_id = ? ORDER BY points DESC').all(sessionId);
-      const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+      const players = await db.prepare('SELECT * FROM session_players WHERE session_id = ? ORDER BY points DESC').all(sessionId);
+      const session = await db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
 
       io.to(sessionId).emit('session_updated', { session, players });
     });
 
     // Start Game
-    socket.on('start_game', ({ sessionId }) => {
-      db.prepare("UPDATE sessions SET status = 'active', current_turn = 1 WHERE id = ?").run(sessionId);
+    socket.on('start_game', async ({ sessionId }) => {
+      await db.prepare("UPDATE sessions SET status = 'active', current_turn = 1 WHERE id = ?").run(sessionId);
       
-      const session = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
-      const players = db.prepare('SELECT * FROM session_players WHERE session_id = ? ORDER BY points DESC').all(sessionId);
+      const session = await db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+      const players = await db.prepare('SELECT * FROM session_players WHERE session_id = ? ORDER BY points DESC').all(sessionId);
 
       io.to(sessionId).emit('game_started', { session, players });
     });
 
     // Make Player Turn Move
-    socket.on('make_turn', ({ sessionId, playerId, cardId, action }) => {
+    socket.on('make_turn', async ({ sessionId, playerId, cardId, action }) => {
       try {
-        const session: any = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+        const session: any = await db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
         if (!session || session.status === 'completed') return;
 
-        const player: any = db.prepare('SELECT * FROM session_players WHERE session_id = ? AND id = ?').get(sessionId, playerId);
+        const player: any = await db.prepare('SELECT * FROM session_players WHERE session_id = ? AND id = ?').get(sessionId, playerId);
         if (!player) return;
 
-        const card: any = cardId ? db.prepare('SELECT * FROM investment_cards WHERE id = ?').get(cardId) : null;
+        const card: any = cardId ? await db.prepare('SELECT * FROM investment_cards WHERE id = ?').get(cardId) : null;
 
         let pointsSpent = 0;
         let pointsEarned = 0;
@@ -77,7 +77,7 @@ export function setupSocketHandler(io: Server) {
         });
 
         // Record Decision
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO player_decisions (id, session_id, player_id, turn_number, card_id, action, points_spent, points_earned, ai_feedback)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
@@ -93,15 +93,15 @@ export function setupSocketHandler(io: Server) {
         );
 
         // Update Player stats
-        db.prepare(`
+        await db.prepare(`
           UPDATE session_players
           SET points = ?, brand_equity = ?, inclusion_score = ?, talent_retained = ?, turn_completed = ?
           WHERE id = ?
         `).run(newPoints, newEquity, newInclusion, newTalent, session.current_turn, playerId);
 
         // Execute Bot Moves for AI Bots in session
-        const botPlayers = db.prepare('SELECT * FROM session_players WHERE session_id = ? AND is_bot = 1').all(sessionId);
-        const availableCards = db.prepare('SELECT * FROM investment_cards').all();
+        const botPlayers = await db.prepare('SELECT * FROM session_players WHERE session_id = ? AND is_bot = 1').all(sessionId);
+        const availableCards = await db.prepare('SELECT * FROM investment_cards').all();
 
         for (const bot of botPlayers as any[]) {
           const botDecision = AiOrchestrator.makeBotMove({
@@ -136,7 +136,7 @@ export function setupSocketHandler(io: Server) {
           const botInc = Math.min(100, Math.max(0, bot.inclusion_score + bInclusion));
           const botTal = Math.min(100, Math.max(0, bot.talent_retained + bTalent));
 
-          db.prepare(`
+          await db.prepare(`
             UPDATE session_players
             SET points = ?, brand_equity = ?, inclusion_score = ?, talent_retained = ?, turn_completed = ?
             WHERE id = ?
@@ -146,7 +146,7 @@ export function setupSocketHandler(io: Server) {
         // Check Event Card trigger (Chance card luck element!)
         let drawnEventCard = null;
         if (Math.random() < 0.45) { // 45% chance per turn for a market event
-          const eventCards = db.prepare('SELECT * FROM event_cards').all();
+          const eventCards = await db.prepare('SELECT * FROM event_cards').all();
           if (eventCards.length > 0) {
             drawnEventCard = eventCards[Math.floor(Math.random() * eventCards.length)];
             // Apply event impact to human player
@@ -155,7 +155,7 @@ export function setupSocketHandler(io: Server) {
             const evtEquity = Math.min(100, Math.max(0, newEquity + evt.equity_effect));
             const evtInclusion = Math.min(100, Math.max(0, newInclusion + evt.inclusion_effect));
 
-            db.prepare(`
+            await db.prepare(`
               UPDATE session_players
               SET points = ?, brand_equity = ?, inclusion_score = ?
               WHERE id = ?
@@ -168,16 +168,16 @@ export function setupSocketHandler(io: Server) {
         let isGameFinished = false;
 
         if (nextTurn > session.max_turns) {
-          db.prepare("UPDATE sessions SET status = 'completed' WHERE id = ?").run(sessionId);
+          await db.prepare("UPDATE sessions SET status = 'completed' WHERE id = ?").run(sessionId);
           isGameFinished = true;
         } else {
-          db.prepare('UPDATE sessions SET current_turn = ? WHERE id = ?').run(nextTurn, sessionId);
+          await db.prepare('UPDATE sessions SET current_turn = ? WHERE id = ?').run(nextTurn, sessionId);
         }
 
         // Fetch updated state
-        const updatedSession = db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
-        const updatedPlayers = db.prepare('SELECT * FROM session_players WHERE session_id = ? ORDER BY points DESC').all(sessionId);
-        const recentDecisions = db.prepare('SELECT * FROM player_decisions WHERE session_id = ? ORDER BY turn_number DESC LIMIT 10').all(sessionId);
+        const updatedSession = await db.prepare('SELECT * FROM sessions WHERE id = ?').get(sessionId);
+        const updatedPlayers = await db.prepare('SELECT * FROM session_players WHERE session_id = ? ORDER BY points DESC').all(sessionId);
+        const recentDecisions = await db.prepare('SELECT * FROM player_decisions WHERE session_id = ? ORDER BY turn_number DESC LIMIT 10').all(sessionId);
 
         io.to(sessionId).emit('turn_completed', {
           session: updatedSession,
@@ -194,7 +194,7 @@ export function setupSocketHandler(io: Server) {
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       console.log(`Socket disconnected: ${socket.id}`);
     });
   });

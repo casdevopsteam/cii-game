@@ -4,15 +4,15 @@ import { db } from '../db';
 const router = Router();
 
 // Get Quiz Questions (Pre / Post / Both)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const type = (req.query.type as string) || 'both';
     let questions;
 
     if (type === 'both') {
-      questions = db.prepare('SELECT * FROM assessments').all();
+      questions = await db.prepare('SELECT * FROM assessments').all();
     } else {
-      questions = db.prepare('SELECT * FROM assessments WHERE category = ? OR category = "both"').all(type);
+      questions = await db.prepare('SELECT * FROM assessments WHERE category = ? OR category = "both"').all(type);
     }
 
     const formatted = questions.map((q: any) => ({
@@ -27,7 +27,7 @@ router.get('/', (req, res) => {
 });
 
 // Submit User Quiz Response
-router.post('/submit', (req, res) => {
+router.post('/submit', async (req, res) => {
   try {
     const { userId, sessionId, assessmentType, answers } = req.body;
     // answers = [{ questionId: string, selectedOption: number }]
@@ -40,14 +40,14 @@ router.post('/submit', (req, res) => {
     const totalQuestions = answers.length;
 
     for (const ans of answers) {
-      const q: any = db.prepare('SELECT correct_option FROM assessments WHERE id = ?').get(ans.questionId);
+      const q: any = await db.prepare('SELECT correct_option FROM assessments WHERE id = ?').get(ans.questionId);
       if (q && q.correct_option === ans.selectedOption) {
         score++;
       }
     }
 
     const responseId = 'res_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO user_assessment_responses (id, user_id, session_id, assessment_type, score, total_questions, answers_json)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(responseId, userId, sessionId || null, assessmentType || 'pre', score, totalQuestions, JSON.stringify(answers));
@@ -64,10 +64,10 @@ router.post('/submit', (req, res) => {
 });
 
 // Get User Assessment History
-router.get('/user/:userId', (req, res) => {
+router.get('/user/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
-    const responses = db.prepare('SELECT * FROM user_assessment_responses WHERE user_id = ? ORDER BY created_at DESC').all(userId);
+    const responses = await db.prepare('SELECT * FROM user_assessment_responses WHERE user_id = ? ORDER BY created_at DESC').all(userId);
     res.json({ responses });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

@@ -1,14 +1,14 @@
 import bcrypt from 'bcryptjs';
 import { db, initDatabase } from './index';
 
-export function seedData() {
+export async function seedData() {
   initDatabase();
 
   // 1. Seed Users (Super Admin, Admin, Standard Users)
   const passwordHash = bcrypt.hashSync('Admin@123456', 10);
   const userPasswordHash = bcrypt.hashSync('User@123456', 10);
 
-  const insertUser = db.prepare(`
+  const insertUser = await db.prepare(`
     INSERT OR REPLACE INTO users (id, name, email, password_hash, age, company, country, role)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
@@ -58,7 +58,7 @@ export function seedData() {
   );
 
   // 2. Seed Investment Cards
-  const insertCard = db.prepare(`
+  const insertCard = await db.prepare(`
     INSERT OR REPLACE INTO investment_cards 
     (id, title, category, cost, yield_points, equity_impact, inclusion_impact, talent_impact, description, real_world_case, learning_insight)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -214,7 +214,7 @@ export function seedData() {
   }
 
   // 3. Seed Event Cards (Chance Cards)
-  const insertEvent = db.prepare(`
+  const insertEvent = await db.prepare(`
     INSERT OR REPLACE INTO event_cards
     (id, title, category, points_effect, equity_effect, inclusion_effect, narrative, takeaway)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -297,7 +297,7 @@ export function seedData() {
   }
 
   // 4. Seed Pre & Post Assessment Questions
-  const insertAssessment = db.prepare(`
+  const insertAssessment = await db.prepare(`
     INSERT OR REPLACE INTO assessments
     (id, question, options, correct_option, explanation, category)
     VALUES (?, ?, ?, ?, ?, ?)
@@ -386,5 +386,5 @@ export function seedData() {
 }
 
 if (require.main === module) {
-  seedData();
+  seedData().catch(console.error);
 }
