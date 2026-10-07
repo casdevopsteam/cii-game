@@ -4,20 +4,20 @@ pipeline {
         DOCKER_BUILDKIT = '1'
        
         // ── Credentials IDs ─────────────────────────────────────────────────
-        VM_SSH_CRED_ID = "proxmox-vm-ssh-key" 
-        VM_SUDO_CRED_ID = "proxmox-vm-sudo-pass" 
-        GITHUB_CRED_ID = "github-credentials" 
-        DOCKERHUB_CRED_ID = "dockerhub-credentials" 
-        ENV_FILE_CRED_ID = "cii-game-production-env" 
+        VM_SSH_CRED_ID = "cii-game-ssh" 
+        VM_SUDO_CRED_ID = "vm-sudo-password" 
+        GITHUB_CRED_ID = "github-cred" 
+        DOCKERHUB_CRED_ID = "dockerhub-creds" 
+        ENV_FILE_CRED_ID = "cii-game-env" 
         
         // ── Docker Image Names ──────────────────────────────────────────────
-        BACKEND_IMAGE = "yourdockerhub/cii-inclusive-tycoon-backend"
-        FRONTEND_IMAGE = "yourdockerhub/cii-inclusive-tycoon-frontend"
+        BACKEND_IMAGE = "casdevops/cii-inclusive-tycoon-backend"
+        FRONTEND_IMAGE = "casdevops/cii-inclusive-tycoon-frontend"
         
         // ── VM Deployment Target ────────────────────────────────────────────
         VM_USER = "deploy"
-        VM_HOST = "192.168.1.100" # Replace with your Proxmox VM IP
-        VM_APP_DIR = "/home/deploy/cii-inclusive-tycoon"
+        VM_HOST = "192.168.1.34" # Replace with your Proxmox VM IP
+        VM_APP_DIR = "/home/cubeai/cii-inclusive-tycoon"
         
         // ── Git Configuration ───────────────────────────────────────────────
         GIT_BRANCH = "main"
