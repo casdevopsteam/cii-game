@@ -15,13 +15,13 @@ pipeline {
         FRONTEND_IMAGE = "casdevops/cii-inclusive-tycoon-frontend"
         
         // ── VM Deployment Target ────────────────────────────────────────────
-        VM_USER = "deploy"
-        VM_HOST = "192.168.1.34" // Replace with your Proxmox VM IP
+        VM_USER = "cubeai"
+        VM_HOST = "192.168.1.34" 
         VM_APP_DIR = "/home/cubeai/cii-inclusive-tycoon"
         
         // ── Git Configuration ───────────────────────────────────────────────
-        GIT_BRANCH = "main"
-        GIT_URL = "https://github.com/your-org/cii-inclusive-tycoon.git"
+        GIT_BRANCH = "deploy"
+        GIT_URL = "https://github.com/casdevopsteam/cii-game.git"
         
         // ── Source Directories ──────────────────────────────────────────────
         BACKEND_DIR = "backend"
